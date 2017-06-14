@@ -1,0 +1,74 @@
+#!/bin/bash -e
+
+/usr/bin/env > /tmp/job-env
+
+THIS=connection-logger
+RUN_DIR=/var/vcap/sys/run/$THIS
+PIDFILE=${RUN_DIR}/ulogd.pid
+LOG_DIR=/var/vcap/sys/log/$THIS
+PACKAGE_DIR=/var/vcap/packages/ulogd
+JOB_DIR=/var/vcap/jobs/$THIS
+CONF_FILE=${JOB_DIR}/conf/ulogd.conf
+TD=$(mktemp)
+
+source /var/vcap/packages/job-utils/syslog_utils.sh
+source /var/vcap/packages/job-utils/pid_utils.sh
+
+if [ ! -d $LOG_DIR ]; then
+  mkdir -p $LOG_DIR
+  chown -R vcap:vcap $LOG_DIR
+fi
+
+ln -nsf $LOG_DIR $JOB_DIR/logs
+tee_output_to_sys_log "${LOG_DIR}"
+
+case $1 in
+  start)
+    if [ ! -d ${RUN_DIR} ]; then
+            mkdir -p $RUN_DIR
+            chown -R vcap:vcap $RUN_DIR
+    fi
+
+    echo 'inside case, $1='$1
+
+    ln -nsf $RUN_DIR $JOB_DIR/run
+    pid_guard $PIDFILE $THIS
+
+    cp /usr/sbin/policy-rc.d ${TD} || true
+    echo "exit 101" > /usr/sbin/policy-rc.d
+    chmod +x /usr/sbin/policy-rc.d
+
+    dpkg -R -i ${PACKAGE_DIR}
+
+    echo 'manual' > /etc/init/ulogd2.override
+
+    if [ -e ${TD}/policy-rc.d ]; then
+      cat ${TD}/policy-rc.d > /usr/sbin/policy-rc.d; chmod +x /usr/sbin/policy-rc.d
+    else
+      rm /usr/sbin/policy-rc.d || true
+    fi
+
+    rm -rf ${TD}
+
+    rule="-m comment --comment 'log a packet disallowed for egress by diego security groups' -j NFLOG --nflog-prefix DIEGO --nflog-group 26"
+    echo "iptables -D w--default ${rule}" || true
+    eval "iptables -D w--default ${rule}" || true
+
+    insert_before_rule="-A w--default -j REJECT --reject-with icmp-port-unreachable"
+    idx="$(($(iptables -S w--default | grep -n -- "${insert_before_rule}" | awk -F: '{print $1}') - 1))"
+
+    echo "iptables -I w--default ${idx} ${rule}"
+    eval "iptables -I w--default ${idx} ${rule}"
+
+    echo "1"> /proc/sys/net/netfilter/nf_conntrack_acct
+    /usr/sbin/ulogd -l 1 -p ${PIDFILE} -c ${CONF_FILE}
+    ;;
+  stop)
+    kill_and_wait $PIDFILE
+
+    ;;
+  *)
+    echo "Usage: ${0} {start|stop}"
+    ;;
+esac
+

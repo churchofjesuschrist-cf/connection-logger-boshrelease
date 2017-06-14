@@ -1,0 +1,6 @@
+[submodule "src/github.com/lds-cf/ulogd-dropsonde-output"]
+	path = src/github.com/lds-cf/ulogd-dropsonde-output
+	url = https://github.com/lds-cf/ulogd-dropsonde-output
+[submodule "src/github.com/lds-cf/ulogd-ip2instance-filter"]
+	path = src/github.com/lds-cf/ulogd-ip2instance-filter
+	url = https://github.com/lds-cf/ulogd-ip2instance-filter.git

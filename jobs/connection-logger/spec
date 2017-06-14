@@ -1,0 +1,10 @@
+---
+name: connection-logger
+description: "log network connections using ulogd"
+templates:
+  connection-logger_ctl: bin/connection-logger_ctl
+  ulogd.conf: conf/ulogd.conf
+packages:
+- ulogd
+- job-utils
+properties: {}

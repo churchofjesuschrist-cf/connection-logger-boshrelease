@@ -1,0 +1,8 @@
+---
+name: ulogd
+dependencies: []
+files: 
+- golang/go1.7.linux-amd64.tar.gz
+- apt/ulogd2/**/*
+- github.com/lds-cf/ulogd-dropsonde-output/**/*
+- github.com/lds-cf/ulogd-ip2instance-filter/**/*

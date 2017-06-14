@@ -1,0 +1,37 @@
+set -e # exit immediately if a simple command exits with a non-zero status
+set -u # report the usage of uninitialized variables
+
+# Available variables
+# $BOSH_COMPILE_TARGET - where this package & spec'd source files are available
+# $BOSH_INSTALL_TARGET - where you copy/install files to be included in package
+
+echo "installing build deps"
+dpkg -i -R ${BOSH_COMPILE_TARGET}/apt/ulogd2/build-dep/
+
+echo "extracting debian source"
+dpkg-source -x ${BOSH_COMPILE_TARGET}/apt/ulogd2/*.dsc ${BOSH_COMPILE_TARGET}/ulogd-source
+
+echo "building from source"
+(cd ${BOSH_COMPILE_TARGET}/ulogd-source
+dpkg-buildpackage -rfakeroot -uc -b)
+
+echo "copying *.deb to ${BOSH_INSTALL_TARGET}"
+mkdir -p ${BOSH_INSTALL_TARGET}/dpkgs
+cp ${BOSH_COMPILE_TARGET}/apt/ulogd2/dep/*.deb ${BOSH_INSTALL_TARGET}/dpkgs/
+cp ${BOSH_COMPILE_TARGET}/ulogd2_2.0.3-1ubuntu2_amd64.deb ${BOSH_INSTALL_TARGET}/dpkgs/
+
+(cd ${BOSH_COMPILE_TARGET}
+tar zxf golang/go1.7.linux-amd64.tar.gz
+mkdir src && mv github.com src)
+
+export GOROOT=${BOSH_COMPILE_TARGET}/go
+export GO=${GOROOT}/bin/go
+
+${GO} version
+${GO} env
+
+for plugin in github.com/lds-cf/ulogd-dropsonde-output github.com/lds-cf/ulogd-ip2instance-filter; do
+	pushd ${BOSH_COMPILE_TARGET}/src/${plugin}
+	ULOGD_SRC=${BOSH_COMPILE_TARGET}/ulogd-source GOPATH=${BOSH_COMPILE_TARGET} OBJDIR=${BOSH_INSTALL_TARGET} ./Makefile
+	popd
+done

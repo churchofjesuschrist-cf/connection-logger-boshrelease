@@ -1,0 +1,5 @@
+check process connection-logger
+  with pidfile /var/vcap/sys/run/connection-logger/ulogd.pid
+  start program "/var/vcap/jobs/connection-logger/bin/connection-logger_ctl start"
+  stop program "/var/vcap/jobs/connection-logger/bin/connection-logger_ctl stop"
+  group vcap
